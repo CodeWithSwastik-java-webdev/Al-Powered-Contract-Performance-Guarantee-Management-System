@@ -1,0 +1,372 @@
+// =============================================================================
+// POWERGRID — Contract Performance Guarantee (CPG) Management System
+// Production PostgreSQL Schema via Prisma ORM
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  ADMIN
+  ENGINEER
+  FINANCE
+  VIEWER
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  TERMINATED
+  SUSPENDED
+}
+
+enum CpgStatus {
+  ACTIVE
+  EXPIRED
+  CLAIMED
+  INVOKED
+  RELEASED
+  RENEWED
+  CANCELLED
+}
+
+enum BankGuaranteeType {
+  PERFORMANCE_BANK_GUARANTEE // PBG
+  ADVANCE_BANK_GUARANTEE     // ABG
+  SECURITY_DEPOSIT
+  OTHER
+}
+
+enum DocumentType {
+  BANK_GUARANTEE
+  CONTRACT_COPY
+  EXTENSION_LETTER
+  CLAIM_NOTICE
+  RELEASE_LETTER
+  RENEWAL_LETTER
+  CORRESPONDENCE
+  OTHER
+}
+
+enum AuditEntityType {
+  USER
+  CONTRACTOR
+  CONTRACT
+  CPG
+  DOCUMENT
+  RISK_ASSESSMENT
+  ML_PREDICTION
+  NOTIFICATION
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  UPLOAD
+  DOWNLOAD
+  LOGIN
+  LOGOUT
+  EXPORT
+  INVOCATION
+  RELEASE
+  RENEWAL
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  EXPIRY_ALERT
+  CLAIM_PERIOD_ALERT
+  ANOMALY_DETECTED
+  STATUS_CHANGE
+  RISK_ESCALATION
+  DOCUMENT_UPLOADED
+  SYSTEM
+  REMINDER
+}
+
+// =============================================================================
+// MODELS
+// =============================================================================
+
+/// Platform users authenticated via Firebase.
+/// firebase_uid is the canonical identity link to Firebase Auth.
+model User {
+  id          String   @id @default(cuid())
+  firebaseUid String   @unique @map("firebase_uid")
+  name        String
+  email       String   @unique
+  role        UserRole @default(VIEWER)
+  department  String?
+  phone       String?
+  isActive    Boolean  @default(true) @map("is_active")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  uploadedDocuments Document[]     @relation("DocumentUploader")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  createdContracts  Contract[]     @relation("ContractCreator")
+  updatedContracts  Contract[]     @relation("ContractUpdater")
+
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("users")
+}
+
+/// External vendors / contractors who hold CPG obligations.
+model Contractor {
+  id            String  @id @default(cuid())
+  name          String
+  vendorCode    String  @unique @map("vendor_code")
+  gstNumber     String? @map("gst_number")
+  panNumber     String? @map("pan_number")
+  contactPerson String  @map("contact_person")
+  email         String
+  phone         String?
+  address       String?
+  state         String?
+  rating        Decimal? @db.Decimal(3, 2) // 0.00 – 5.00
+  isActive      Boolean  @default(true) @map("is_active")
+  isBlacklisted Boolean  @default(false) @map("is_blacklisted")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  contracts Contract[]
+
+  @@index([name])
+  @@index([email])
+  @@index([isActive, isBlacklisted])
+  @@index([createdAt])
+  @@map("contractors")
+}
+
+/// Master contract record under which one or more CPGs are issued.
+model Contract {
+  id              String         @id @default(cuid())
+  contractNumber  String         @unique @map("contract_number")
+  projectName     String         @map("project_name")
+  description     String?
+  contractValue   Decimal        @map("contract_value") @db.Decimal(18, 2)
+  currency        String         @default("INR")
+  awardDate       DateTime       @map("award_date") @db.Date
+  completionDate  DateTime?      @map("completion_date") @db.Date
+  status          ContractStatus @default(DRAFT)
+  zone            String?        // e.g. NR, ER, WR, SR, NER
+
+  contractorId String   @map("contractor_id")
+  createdById  String?  @map("created_by_id")
+  updatedById  String?  @map("updated_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  contractor Contractor @relation(fields: [contractorId], references: [id], onDelete: Restrict)
+  createdBy  User?      @relation("ContractCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy  User?      @relation("ContractUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  cpgs       Cpg[]
+
+  @@index([contractorId])
+  @@index([status])
+  @@index([awardDate])
+  @@index([completionDate])
+  @@index([zone])
+  @@index([createdAt])
+  @@map("contracts")
+}
+
+/// Contract Performance Guarantee (Bank Guarantee) tied to a contract.
+/// Supports renewal chains via renewedFromId self-reference.
+model Cpg {
+  id              String            @id @default(cuid())
+  contractId      String            @map("contract_id")
+  bgNumber        String            @unique @map("bg_number")
+  bgType          BankGuaranteeType @default(PERFORMANCE_BANK_GUARANTEE) @map("bg_type")
+  bankName        String            @map("bank_name")
+  bankBranch      String?           @map("bank_branch")
+  ifscCode        String?           @map("ifsc_code")
+  amount          Decimal           @db.Decimal(18, 2)
+  issueDate       DateTime          @map("issue_date") @db.Date
+  expiryDate      DateTime          @map("expiry_date") @db.Date
+  claimPeriodEnd  DateTime          @map("claim_period_end") @db.Date
+  status          CpgStatus         @default(ACTIVE)
+  remarks         String?
+
+  /// Links to the predecessor CPG when this record is a renewal.
+  renewedFromId String? @map("renewed_from_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  contract         Contract          @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  renewedFrom      Cpg?              @relation("CpgRenewalChain", fields: [renewedFromId], references: [id], onDelete: SetNull)
+  renewals         Cpg[]             @relation("CpgRenewalChain")
+  documents        Document[]
+  riskAssessments  RiskAssessment[]
+  mlPredictions    MlPrediction[]
+
+  @@index([contractId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([claimPeriodEnd])
+  @@index([issueDate])
+  @@index([bankName])
+  @@index([status, expiryDate]) // expiry dashboard queries
+  @@index([createdAt])
+  @@map("cpgs")
+}
+
+/// Files stored in Cloudinary and linked to a CPG.
+model Document {
+  id                 String       @id @default(cuid())
+  cpgId              String       @map("cpg_id")
+  fileName           String       @map("file_name")
+  fileUrl            String       @map("file_url")
+  cloudinaryPublicId String       @map("cloudinary_public_id")
+  documentType       DocumentType @map("document_type")
+  mimeType           String?      @map("mime_type")
+  fileSizeBytes      Int?         @map("file_size_bytes")
+  version            Int          @default(1)
+  isActive           Boolean      @default(true) @map("is_active")
+
+  uploadedById String @map("uploaded_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  cpg        Cpg  @relation(fields: [cpgId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([cpgId])
+  @@index([uploadedById])
+  @@index([documentType])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("documents")
+}
+
+/// Immutable audit trail for compliance and forensic review.
+/// oldValue / newValue store JSON snapshots of changed fields.
+model AuditLog {
+  id         String          @id @default(cuid())
+  userId     String?         @map("user_id")
+  entityType AuditEntityType @map("entity_type")
+  entityId   String          @map("entity_id")
+  action     AuditAction
+  oldValue   Json?           @map("old_value")
+  newValue   Json?           @map("new_value")
+  ipAddress  String?         @map("ip_address")
+  userAgent  String?         @map("user_agent")
+  metadata   Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, createdAt])
+  @@map("audit_logs")
+}
+
+/// In-app notifications delivered to users (expiry alerts, anomalies, etc.).
+model Notification {
+  id      String           @id @default(cuid())
+  userId  String           @map("user_id")
+  type    NotificationType @default(SYSTEM)
+  title   String
+  message String
+  isRead  Boolean          @default(false) @map("is_read")
+  readAt  DateTime?        @map("read_at")
+
+  /// Optional polymorphic link to the source entity.
+  relatedEntityType AuditEntityType? @map("related_entity_type")
+  relatedEntityId   String?          @map("related_entity_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([relatedEntityType, relatedEntityId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// Point-in-time health / risk evaluation for a CPG (append-only history).
+model RiskAssessment {
+  id               String    @id @default(cuid())
+  cpgId            String    @map("cpg_id")
+  healthScore      Decimal   @map("health_score") @db.Decimal(5, 2) // 0.00 – 100.00
+  riskLevel        RiskLevel @map("risk_level")
+  anomalyDetected  Boolean   @default(false) @map("anomaly_detected")
+  anomalyReason    String?   @map("anomaly_reason")
+  factors          Json?     // structured breakdown of score components
+  assessedBySystem Boolean   @default(true) @map("assessed_by_system")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  cpg Cpg @relation(fields: [cpgId], references: [id], onDelete: Cascade)
+
+  @@index([cpgId])
+  @@index([cpgId, createdAt])
+  @@index([riskLevel])
+  @@index([anomalyDetected])
+  @@index([createdAt])
+  @@map("risk_assessments")
+}
+
+/// ML model inference output for a CPG (append-only history).
+model MlPrediction {
+  id                String  @id @default(cuid())
+  cpgId             String  @map("cpg_id")
+  riskProbability   Decimal @map("risk_probability") @db.Decimal(5, 4)   // 0.0000 – 1.0000
+  delayProbability  Decimal @map("delay_probability") @db.Decimal(5, 4)  // 0.0000 – 1.0000
+  modelVersion      String  @map("model_version")
+  confidenceScore   Decimal? @map("confidence_score") @db.Decimal(5, 4)
+  features          Json?   // input feature vector snapshot for reproducibility
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  cpg Cpg @relation(fields: [cpgId], references: [id], onDelete: Cascade)
+
+  @@index([cpgId])
+  @@index([cpgId, createdAt])
+  @@index([modelVersion])
+  @@index([createdAt])
+  @@map("ml_predictions")
+}
