@@ -91,6 +91,13 @@ export class UserService {
 
     return userRepository.updateRole(id, input.role);
   }
+
+  async unlock(id: string, actor: User): Promise<User> {
+    // only admin
+    if (actor.role !== UserRole.ADMIN) throw new ForbiddenError('Only admins can unlock accounts')
+    await this.getById(id)
+    return userRepository.update(id, { failedLoginAttempts: 0, lockedUntil: null, isActive: true })
+  }
 }
 
 export const userService = new UserService();

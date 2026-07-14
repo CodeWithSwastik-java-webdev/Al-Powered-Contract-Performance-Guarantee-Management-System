@@ -5,3 +5,6 @@ export { ContractRepository, contractRepository } from "./contract.repository";
 export { CpgRepository, cpgRepository } from "./cpg.repository";
 export { AuditLogRepository, auditLogRepository } from "./audit-log.repository";
 export { RiskAssessmentRepository, riskAssessmentRepository } from "./risk-assessment.repository";
+export { RegistrationRepository, registrationRepository } from "./registration.repository";
+export { LoginActivityRepository, loginActivityRepository } from "./login-activity.repository";
+export { ReportHistoryRepository, reportHistoryRepository } from "./report-history.repository";

@@ -5,7 +5,7 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
-  CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  CORS_ORIGIN: z.string().default("http://localhost:3001"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
@@ -15,6 +15,14 @@ const envSchema = z.object({
     .string()
     .min(1, "FIREBASE_CLIENT_EMAIL is required"),
   FIREBASE_PRIVATE_KEY: z.string().min(1, "FIREBASE_PRIVATE_KEY is required"),
+
+  // Cloudinary (optional — required for Phase 6: Document Upload)
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+
+  // ML Service (optional — required for Phase 8: AI Module)
+  ML_SERVICE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

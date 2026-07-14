@@ -1,4 +1,4 @@
-// =============================================================================
+1// =============================================================================
 // POWERGRID — Contract Performance Guarantee (CPG) Management System
 // Production PostgreSQL Schema via Prisma ORM
 // =============================================================================
@@ -23,6 +23,25 @@ enum UserRole {
   VIEWER
 }
 
+enum UserStatus {
+  PENDING_APPROVAL
+  MORE_INFORMATION_REQUIRED
+  APPROVED
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  DISABLED
+  INACTIVE
+}
+
+enum RegistrationStatus {
+  PENDING_APPROVAL
+  MORE_INFORMATION_REQUIRED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum ContractStatus {
   DRAFT
   ACTIVE
@@ -32,6 +51,9 @@ enum ContractStatus {
 }
 
 enum CpgStatus {
+  REQUIRED
+  SUBMITTED
+  VERIFIED
   ACTIVE
   EXPIRED
   CLAIMED
@@ -110,29 +132,40 @@ enum NotificationType {
 /// Platform users authenticated via Firebase.
 /// firebase_uid is the canonical identity link to Firebase Auth.
 model User {
-  id          String   @id @default(cuid())
-  firebaseUid String   @unique @map("firebase_uid")
-  name        String
-  email       String   @unique
-  role        UserRole @default(VIEWER)
-  department  String?
+  id                  String     @id @default(cuid())
+  firebaseUid         String     @unique @map("firebase_uid")
+  name                String
+  email               String     @unique
+  role                UserRole   @default(VIEWER)
+  department          String?
   phone       String?
   isActive    Boolean  @default(true) @map("is_active")
   lastLoginAt DateTime? @map("last_login_at")
+  status              UserStatus @default(ACTIVE)
+  profilePhotoUrl     String?    @map("profile_photo_url")
+  employeeId          String?    @map("employee_id")
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until")
+  isDeleted           Boolean    @default(false) @map("is_deleted")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  uploadedDocuments Document[]     @relation("DocumentUploader")
+  uploadedDocuments Document[]            @relation("DocumentUploader")
   auditLogs         AuditLog[]
   notifications     Notification[]
-  createdContracts  Contract[]     @relation("ContractCreator")
-  updatedContracts  Contract[]     @relation("ContractUpdater")
+  createdContracts  Contract[]            @relation("ContractCreator")
+  updatedContracts  Contract[]            @relation("ContractUpdater")
+  loginActivities   LoginActivity[]
+  reportsHistory    ReportHistory[]
+  reviewedRequests  RegistrationRequest[] @relation("ReviewedRegistrations")
+  comments          RegistrationComment[]
 
   @@index([role])
   @@index([isActive])
   @@index([createdAt])
+  @@index([isDeleted])
   @@map("users")
 }
 
@@ -177,6 +210,7 @@ model Contract {
   completionDate  DateTime?      @map("completion_date") @db.Date
   status          ContractStatus @default(DRAFT)
   zone            String?        // e.g. NR, ER, WR, SR, NER
+  isDeleted       Boolean        @default(false) @map("is_deleted")
 
   contractorId String   @map("contractor_id")
   createdById  String?  @map("created_by_id")
@@ -197,6 +231,7 @@ model Contract {
   @@index([completionDate])
   @@index([zone])
   @@index([createdAt])
+  @@index([isDeleted])
   @@map("contracts")
 }
 
@@ -216,6 +251,7 @@ model Cpg {
   claimPeriodEnd  DateTime          @map("claim_period_end") @db.Date
   status          CpgStatus         @default(ACTIVE)
   remarks         String?
+  isDeleted       Boolean           @default(false) @map("is_deleted")
 
   /// Links to the predecessor CPG when this record is a renewal.
   renewedFromId String? @map("renewed_from_id")
@@ -239,6 +275,7 @@ model Cpg {
   @@index([bankName])
   @@index([status, expiryDate]) // expiry dashboard queries
   @@index([createdAt])
+  @@index([isDeleted])
   @@map("cpgs")
 }
 
@@ -254,20 +291,24 @@ model Document {
   fileSizeBytes      Int?         @map("file_size_bytes")
   version            Int          @default(1)
   isActive           Boolean      @default(true) @map("is_active")
+  isDeleted          Boolean      @default(false) @map("is_deleted")
 
   uploadedById String @map("uploaded_by")
 
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  cpg        Cpg  @relation(fields: [cpgId], references: [id], onDelete: Cascade)
-  uploadedBy User @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  cpg        Cpg               @relation(fields: [cpgId], references: [id], onDelete: Cascade)
+  uploadedBy User              @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  versions   DocumentVersion[]
 
   @@index([cpgId])
   @@index([uploadedById])
   @@index([documentType])
   @@index([isActive])
   @@index([createdAt])
+  @@index([isDeleted])
   @@map("documents")
 }
 
@@ -369,4 +410,103 @@ model MlPrediction {
   @@index([modelVersion])
   @@index([createdAt])
   @@map("ml_predictions")
+}
+
+model RegistrationRequest {
+  id             String             @id @default(cuid())
+  category       String             // "EMPLOYEE" or "CONTRACTOR"
+  status         RegistrationStatus @default(PENDING_APPROVAL)
+  email          String             @unique
+  name           String
+  phone          String?
+  department     String?
+  employeeId     String?            @map("employee_id")
+  companyName    String?            @map("company_name")
+  vendorCode     String?            @map("vendor_code")
+  gstNumber      String?            @map("gst_number")
+  panNumber      String?            @map("pan_number")
+  contactPerson  String?            @map("contact_person")
+  companyAddress String?            @map("company_address")
+  companyState   String?            @map("company_state")
+  currentStage   String             @default("Basic Information") @map("current_stage")
+  estimatedReviewTime String        @default("2 Working Days") @map("estimated_review_time")
+  formData       Json?              @map("form_data") // Stores JSON state of steps
+  uploadedDocs   Json?              @map("uploaded_docs") // Stores array of uploaded document metadata
+  
+  reviewedById   String?            @map("reviewed_by_id")
+  reviewedBy     User?              @relation("ReviewedRegistrations", fields: [reviewedById], references: [id])
+  comments       RegistrationComment[]
+
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([category])
+  @@index([email])
+  @@map("registration_requests")
+}
+
+model RegistrationComment {
+  id             String              @id @default(cuid())
+  requestId      String              @map("request_id")
+  authorId       String              @map("author_id")
+  content        String
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  request        RegistrationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author         User                @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId])
+  @@map("registration_comments")
+}
+
+model LoginActivity {
+  id             String    @id @default(cuid())
+  userId         String?   @map("user_id")
+  email          String
+  ipAddress      String    @map("ip_address")
+  userAgent      String    @map("user_agent")
+  browser        String
+  device         String
+  location       String?
+  loginTime      DateTime  @default(now()) @map("login_time")
+  logoutTime     DateTime? @map("logout_time")
+  isSuccessful   Boolean   @map("is_successful")
+  failureReason  String?   @map("failure_reason")
+
+  user           User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@index([loginTime])
+  @@map("login_activities")
+}
+
+model DocumentVersion {
+  id             String    @id @default(cuid())
+  documentId     String    @map("document_id")
+  version        Int
+  fileUrl        String    @map("file_url")
+  uploadedById   String    @map("uploaded_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  document       Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_versions")
+}
+
+model ReportHistory {
+  id             String    @id @default(cuid())
+  reportName     String    @map("report_name")
+  generatedById  String    @map("generated_by_id")
+  generatedOn    DateTime  @default(now()) @map("generated_on")
+  downloaded     Boolean   @default(false)
+  shared         Boolean   @default(false)
+  fileUrl        String    @map("file_url")
+
+  generatedBy    User      @relation(fields: [generatedById], references: [id], onDelete: Cascade)
+
+  @@index([generatedById])
+  @@map("reports_history")
 }

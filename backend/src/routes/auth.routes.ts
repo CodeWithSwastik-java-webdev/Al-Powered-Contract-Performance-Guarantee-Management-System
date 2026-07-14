@@ -20,4 +20,10 @@ router.post(
   asyncHandler(authController.syncLogin.bind(authController)),
 );
 
+// Record failed login attempts (public)
+router.post("/login/failure", asyncHandler(authController.recordLoginFailure.bind(authController)));
+
+// Admin unlock
+router.post("/unlock/:id", authenticate, asyncHandler(authController.unlockUser.bind(authController)));
+
 export default router;

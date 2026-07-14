@@ -32,3 +32,11 @@ export {
   type CpgActionInput,
   type ListCpgsQuery,
 } from "./cpg.validator";
+export {
+  createContractorSchema,
+  updateContractorSchema,
+  listContractorsQuerySchema,
+  type CreateContractorInput,
+  type UpdateContractorInput,
+  type ListContractorsQuery,
+} from "./contractor.validator";

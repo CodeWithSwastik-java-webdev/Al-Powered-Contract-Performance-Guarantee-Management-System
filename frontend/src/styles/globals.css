@@ -16,7 +16,7 @@
   --accent: #2D6A4F;
 }
 
-document[data-theme='dark'] {
+[data-theme='dark'] {
   color-scheme: dark;
   background-color: #111827;
   color: #F8FAF9;

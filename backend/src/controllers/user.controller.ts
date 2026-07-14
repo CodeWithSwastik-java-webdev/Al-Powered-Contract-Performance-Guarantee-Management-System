@@ -79,6 +79,13 @@ export class UserController {
       data: user,
     });
   }
+
+  async unlock(req: Request, res: Response): Promise<void> {
+    if (!req.user) throw new UnauthorizedError()
+    const target = String(req.params.id)
+    const user = await userService.unlock(target, req.user)
+    res.json({ success: true, data: user })
+  }
 }
 
 export const userController = new UserController();

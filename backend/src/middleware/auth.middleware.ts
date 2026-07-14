@@ -55,8 +55,20 @@ export async function authenticate(
       );
     }
 
+    // Account state checks
     if (!user.isActive) {
       throw new ForbiddenError("Account is deactivated");
+    }
+
+    // Status checks
+    const status = (user as any).status
+    if (status === 'PENDING_APPROVAL' || status === 'MORE_INFORMATION_REQUIRED' || status === 'REJECTED' || status === 'DISABLED') {
+      throw new ForbiddenError(`Account status: ${status}`)
+    }
+
+    // Locked due to failed attempts
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new ForbiddenError('Account is locked due to multiple failed login attempts')
     }
 
     req.user = user;

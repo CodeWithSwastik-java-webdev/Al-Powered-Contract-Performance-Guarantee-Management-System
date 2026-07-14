@@ -55,4 +55,7 @@ router.patch(
   asyncHandler(userController.updateRole.bind(userController)),
 );
 
+// Admin unlock user
+router.post('/:id/unlock', requireRoles(UserRole.ADMIN), validate(idParamSchema, 'params'), asyncHandler(userController.unlock.bind(userController)))
+
 export default router;
