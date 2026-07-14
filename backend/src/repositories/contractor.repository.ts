@@ -10,18 +10,24 @@ export class ContractorRepository extends BaseRepository {
     skip?: number;
     take?: number;
     where?: Prisma.ContractorWhereInput;
+    orderBy?: Prisma.ContractorOrderByWithRelationInput;
   }) {
     const [items, total] = await Promise.all([
       this.db.contractor.findMany({
         skip: params.skip,
         take: params.take,
         where: params.where,
-        orderBy: { createdAt: "desc" },
+        orderBy: params.orderBy ?? { createdAt: "desc" },
       }),
       this.db.contractor.count({ where: params.where }),
     ]);
     return { items, total };
   }
+
+  async create(data: Prisma.ContractorCreateInput): Promise<Contractor> { return this.db.contractor.create({ data }); }
+  async update(id: string, data: Prisma.ContractorUpdateInput): Promise<Contractor> { return this.db.contractor.update({ where: { id }, data }); }
+  async delete(id: string): Promise<void> { await this.db.contractor.delete({ where: { id } }); }
+  async count(where?: Prisma.ContractorWhereInput): Promise<number> { return this.db.contractor.count({ where }); }
 }
 
 export const contractorRepository = new ContractorRepository();

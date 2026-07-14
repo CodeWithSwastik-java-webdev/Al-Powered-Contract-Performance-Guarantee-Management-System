@@ -16,18 +16,18 @@ export class ContractorController {
 
   async list(req: Request, res: Response): Promise<void> {
     const result = await contractorService.list(req.query as unknown as ListContractorsQuery);
-    res.status(200).json({ success: true, data: result.data, meta: result.meta });
+    res.status(200).json({ success: true, data: result.items, meta: { total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages } });
   }
 
   async getById(req: Request, res: Response): Promise<void> {
-    const contractor = await contractorService.getById(req.params.id);
+    const contractor = await contractorService.getById(String(req.params.id));
     res.status(200).json({ success: true, data: contractor });
   }
 
   async update(req: Request, res: Response): Promise<void> {
     if (!req.user) throw new UnauthorizedError();
     const contractor = await contractorService.update(
-      req.params.id,
+      String(req.params.id),
       req.body as UpdateContractorInput,
     );
     res.status(200).json({ success: true, data: contractor });
@@ -35,7 +35,7 @@ export class ContractorController {
 
   async delete(req: Request, res: Response): Promise<void> {
     if (!req.user) throw new UnauthorizedError();
-    await contractorService.delete(req.params.id);
+    await contractorService.delete(String(req.params.id));
     res.status(204).send();
   }
 }

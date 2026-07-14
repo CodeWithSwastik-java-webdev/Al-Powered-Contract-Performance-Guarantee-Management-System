@@ -31,9 +31,9 @@ export class AuthController {
     // record successful login activity and reset failed attempts
     try {
       await loginActivityRepository.create({
-        userId: user.id,
+        user: { connect: { id: user.id } },
         email: user.email,
-        ipAddress: req.ip,
+        ipAddress: req.ip ?? "unknown",
         userAgent: req.get('User-Agent') ?? '',
         browser: req.get('User-Agent')?.split(' ')[0] ?? 'unknown',
         device: 'unknown',
@@ -57,7 +57,7 @@ export class AuthController {
     // record activity
     await loginActivityRepository.create({
       email: email ?? 'unknown',
-      ipAddress: req.ip,
+      ipAddress: req.ip ?? "unknown",
       userAgent: req.get('User-Agent') ?? '',
       browser: req.get('User-Agent')?.split(' ')[0] ?? 'unknown',
       device: 'unknown',
@@ -83,7 +83,7 @@ export class AuthController {
 
   /** Admin unlock endpoint */
   async unlockUser(req: Request, res: Response): Promise<void> {
-    const targetId = req.params.id
+    const targetId = String(req.params.id)
     await userRepository.update(targetId, { failedLoginAttempts: 0, lockedUntil: null, isActive: true })
     res.json({ success: true })
   }

@@ -10,7 +10,14 @@ import type {
 
 export class ContractorService {
   async create(input: CreateContractorInput): Promise<Contractor> {
-    return contractorRepository.create(input);
+    return contractorRepository.create({
+      name: input.name,
+      vendorCode: `VENDOR-${Date.now()}`,
+      contactPerson: input.name,
+      email: input.contactEmail ?? `unknown-${Date.now()}@pending.local`,
+      phone: input.contactPhone,
+      address: input.address,
+    });
   }
 
   async getById(id: string): Promise<Contractor> {
@@ -23,7 +30,14 @@ export class ContractorService {
 
   async update(id: string, input: UpdateContractorInput): Promise<Contractor> {
     await this.getById(id); // Ensure exists
-    return contractorRepository.update(id, input);
+    return contractorRepository.update(id, {
+      ...(input.name ? { name: input.name } : {}),
+      ...(input.contactEmail ? { email: input.contactEmail } : {}),
+      ...(input.contactPhone ? { phone: input.contactPhone } : {}),
+      ...(input.address ? { address: input.address } : {}),
+      ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(input.isBlacklisted !== undefined ? { isBlacklisted: input.isBlacklisted } : {}),
+    });
   }
 
   async list(query: ListContractorsQuery): Promise<PaginatedResult<Contractor>> {
@@ -42,24 +56,19 @@ export class ContractorService {
       where.isBlacklisted = isBlacklisted === "true";
     }
 
-    const [data, total] = await Promise.all([
-      contractorRepository.findMany({
+    const result = await contractorRepository.findMany({
         skip,
         take: limit,
         where,
         orderBy: { name: "asc" },
-      }),
-      contractorRepository.count(where),
-    ]);
+      });
 
     return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      items: result.items,
+      total: result.total,
+      page,
+      limit,
+      totalPages: Math.ceil(result.total / limit),
     };
   }
 

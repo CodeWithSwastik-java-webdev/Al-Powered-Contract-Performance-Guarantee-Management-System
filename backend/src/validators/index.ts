@@ -9,6 +9,8 @@ export {
   updateUserSchema,
   updateUserRoleSchema,
   listUsersQuerySchema,
+  createRegistrationSchema,
+  updateRegistrationStatusSchema,
   type RegisterUserInput,
   type UpdateUserInput,
   type UpdateUserRoleInput,

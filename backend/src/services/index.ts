@@ -21,3 +21,4 @@ export type {
   AnomalyDetectionResult,
 } from "./anomaly-detection.service";
 export { ContractorService, contractorService } from "./contractor.service";
+export { registrationService } from "./registration.service";

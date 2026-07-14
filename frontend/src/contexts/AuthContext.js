@@ -4,7 +4,7 @@ import { jsx as _jsx } from "react/jsx-runtime";
 // Handles login, registration, logout, token management, and backend sync.
 // =============================================================================
 import { createContext, useContext, useState, useEffect, useCallback, } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, onAuthStateChanged, } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import api from '../lib/api';
 const AuthContext = createContext(undefined);
@@ -42,19 +42,39 @@ export function AuthProvider({ children }) {
     }, [syncWithBackend]);
     // ── Login ──────────────────────────────────────────────────────────────
     const login = useCallback(async ({ email, password }) => {
-        const credential = await signInWithEmailAndPassword(auth, email, password);
-        const appUser = await syncWithBackend(credential.user);
-        setUser(appUser);
-        setFirebaseUser(credential.user);
+        try {
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const appUser = await syncWithBackend(credential.user);
+            setUser(appUser);
+            setFirebaseUser(credential.user);
+        }
+        catch (err) {
+            // Record failed attempt server-side so account lockouts can be enforced
+            try {
+                await api.post('/auth/login/failure', { email, failureReason: err?.message ?? 'signin_failed' });
+            }
+            catch (e) {
+                // ignore
+            }
+            throw err;
+        }
     }, [syncWithBackend]);
     // ── Register ───────────────────────────────────────────────────────────
-    const register = useCallback(async ({ email, password, name, department, }) => {
-        const credential = await createUserWithEmailAndPassword(auth, email, password);
-        const token = await credential.user.getIdToken();
-        // Create the user in the backend DB
-        const res = await api.post('/auth/register', { name, email, department }, { headers: { Authorization: `Bearer ${token}` } });
-        setUser(res.data?.data?.user ?? null);
-        setFirebaseUser(credential.user);
+    const submitRegistration = useCallback(async (data) => {
+        const credential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        try {
+            const token = await credential.user.getIdToken();
+            const { password, ...request } = data;
+            void password;
+            const res = await api.post('/registrations', request, { headers: { Authorization: `Bearer ${token}` } });
+            setUser(null);
+            setFirebaseUser(credential.user);
+            return res.data.data.id;
+        }
+        catch (error) {
+            await deleteUser(credential.user).catch(() => undefined);
+            throw error;
+        }
     }, []);
     // ── Logout ─────────────────────────────────────────────────────────────
     const logout = useCallback(async () => {
@@ -62,7 +82,7 @@ export function AuthProvider({ children }) {
         setUser(null);
         setFirebaseUser(null);
     }, []);
-    return (_jsx(AuthContext.Provider, { value: { user, firebaseUser, loading, login, register, logout }, children: children }));
+    return (_jsx(AuthContext.Provider, { value: { user, firebaseUser, loading, login, submitRegistration, logout }, children: children }));
 }
 // ── Hook ──────────────────────────────────────────────────────────────────
 export function useAuth() {

@@ -2,7 +2,10 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { Route, Routes, Navigate } from 'react-router-dom';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
-import LoginPage from './pages/LoginPage';
+import PremiumLoginPage from './pages/PremiumLoginPage';
+import RegisterLandingPage from './pages/RegisterLandingPage';
+import RegistrationWizard from './pages/RegistrationWizard';
+import TrackingPage from './pages/TrackingPage';
 import DashboardPage from './pages/DashboardPage';
 import ContractsPage from './pages/ContractsPage';
 import ContractPage from './pages/ContractPage';
@@ -18,12 +21,16 @@ function ProtectedRoute({ children }) {
     return user ? children : _jsx(Navigate, { to: "/login", replace: true });
 }
 function PublicRoute({ children }) {
-    const { user, loading } = useAuth();
+    const { user, loading, firebaseUser } = useAuth();
     if (loading)
         return null;
+    // If the user is authenticated in Firebase but doesn't have an app profile yet,
+    // redirect them to the onboarding entry page to start registration.
+    if (firebaseUser && !user)
+        return _jsx(Navigate, { to: "/register", replace: true });
     return user ? _jsx(Navigate, { to: "/dashboard", replace: true }) : children;
 }
 function AppRoutes() {
-    return (_jsxs(Routes, { children: [_jsx(Route, { path: "/login", element: _jsx(PublicRoute, { children: _jsx(AuthLayout, { children: _jsx(LoginPage, {}) }) }) }), _jsxs(Route, { path: "/", element: _jsx(ProtectedRoute, { children: _jsx(AppLayout, {}) }), children: [_jsx(Route, { index: true, element: _jsx(Navigate, { to: "/dashboard", replace: true }) }), _jsx(Route, { path: "dashboard", element: _jsx(DashboardPage, {}) }), _jsx(Route, { path: "contractors", element: _jsx(ContractorsPage, {}) }), _jsx(Route, { path: "contracts", element: _jsx(ContractsPage, {}) }), _jsx(Route, { path: "contracts/:id", element: _jsx(ContractPage, {}) }), _jsx(Route, { path: "cpgs", element: _jsx(CpgsPage, {}) }), _jsx(Route, { path: "*", element: _jsx(NotFoundPage, {}) })] })] }));
+    return (_jsxs(Routes, { children: [_jsx(Route, { path: "/login", element: _jsx(PublicRoute, { children: _jsx(AuthLayout, { children: _jsx(PremiumLoginPage, {}) }) }) }), _jsx(Route, { path: "/register", element: _jsx(PublicRoute, { children: _jsx(AuthLayout, { children: _jsx(RegisterLandingPage, {}) }) }) }), _jsx(Route, { path: "/register/employee", element: _jsx(PublicRoute, { children: _jsx(AuthLayout, { children: _jsx(RegistrationWizard, { category: "EMPLOYEE" }) }) }) }), _jsx(Route, { path: "/register/contractor", element: _jsx(PublicRoute, { children: _jsx(AuthLayout, { children: _jsx(RegistrationWizard, { category: "CONTRACTOR" }) }) }) }), _jsx(Route, { path: "/track/:appId", element: _jsx(PublicRoute, { children: _jsx(AuthLayout, { children: _jsx(TrackingPage, {}) }) }) }), _jsxs(Route, { path: "/", element: _jsx(ProtectedRoute, { children: _jsx(AppLayout, {}) }), children: [_jsx(Route, { index: true, element: _jsx(Navigate, { to: "/dashboard", replace: true }) }), _jsx(Route, { path: "dashboard", element: _jsx(DashboardPage, {}) }), _jsx(Route, { path: "contractors", element: _jsx(ContractorsPage, {}) }), _jsx(Route, { path: "contracts", element: _jsx(ContractsPage, {}) }), _jsx(Route, { path: "contracts/:id", element: _jsx(ContractPage, {}) }), _jsx(Route, { path: "cpgs", element: _jsx(CpgsPage, {}) }), _jsx(Route, { path: "*", element: _jsx(NotFoundPage, {}) })] })] }));
 }
 export default AppRoutes;

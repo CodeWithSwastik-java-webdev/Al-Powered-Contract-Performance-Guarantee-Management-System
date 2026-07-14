@@ -3,7 +3,8 @@ import { registrationService } from '../services'
 
 export class RegistrationController {
   async create(req: Request, res: Response): Promise<void> {
-    const data = req.body
+    if (!req.firebaseUid) throw new Error('Missing Firebase identity')
+    const data = { ...req.body, firebaseUid: req.firebaseUid }
     const created = await registrationService.create(data)
     res.status(201).json({ success: true, data: created })
   }
@@ -18,24 +19,26 @@ export class RegistrationController {
   }
 
   async getById(req: Request, res: Response): Promise<void> {
-    const id = req.params.id
+    const id = String(req.params.id)
     const item = await registrationService.getById(id)
     res.json({ success: true, data: item })
   }
 
   async addComment(req: Request, res: Response): Promise<void> {
-    const id = req.params.id
+    const id = String(req.params.id)
     const authorId = req.user?.id
+    if (!authorId) throw new Error('Missing reviewer identity')
     const { content } = req.body
     const comment = await registrationService.addComment(id, authorId, content)
     res.status(201).json({ success: true, data: comment })
   }
 
   async updateStatus(req: Request, res: Response): Promise<void> {
-    const id = req.params.id
-    const { status } = req.body
+    const id = String(req.params.id)
+    const { status, comment } = req.body
     const reviewerId = req.user?.id
-    const updated = await registrationService.updateStatus(id, status, reviewerId)
+    if (!reviewerId) throw new Error('Missing reviewer identity')
+    const updated = await registrationService.updateStatus(id, status, reviewerId, comment)
     res.json({ success: true, data: updated })
   }
 }

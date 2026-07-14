@@ -15,6 +15,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  deleteUser,
   onAuthStateChanged,
   type User as FirebaseUser,
 } from 'firebase/auth'
@@ -42,18 +43,31 @@ interface AuthContextValue {
   loading: boolean
   /** Sign in with email + password, then sync with backend */
   login: (credentials: { email: string; password: string }) => Promise<void>
-  /** Create a new Firebase account + backend user */
-  register: (data: {
-    email: string
-    password: string
-    name: string
-    department?: string
-  }) => Promise<void>
+  submitRegistration: (data: RegistrationInput) => Promise<string>
   /** Sign out of Firebase (clears user) */
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+export interface RegistrationInput {
+  category: 'EMPLOYEE' | 'CONTRACTOR'
+  email: string
+  password: string
+  name: string
+  phone: string
+  department?: string
+  employeeId?: string
+  designation?: string
+  region?: string
+  companyName?: string
+  contactPerson?: string
+  companyAddress?: string
+  gstNumber?: string
+  panNumber?: string
+  companyWebsite?: string
+  uploadedDocs: Array<{ name: string; url: string; publicId: string; type: string; size?: number }>
+}
 
 // ── Provider ───────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -114,32 +128,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   // ── Register ───────────────────────────────────────────────────────────
-  const register = useCallback(
-    async ({
-      email,
-      password,
-      name,
-      department,
-    }: {
-      email: string
-      password: string
-      name: string
-      department?: string
-    }) => {
-      const credential = await createUserWithEmailAndPassword(auth, email, password)
+  const submitRegistration = useCallback(async (data: RegistrationInput) => {
+    const credential = await createUserWithEmailAndPassword(auth, data.email, data.password)
+    try {
       const token = await credential.user.getIdToken()
-
-      // Create the user in the backend DB
-      const res = await api.post(
-        '/auth/register',
-        { name, email, department },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-      setUser(res.data?.data?.user ?? null)
+      const { password, ...request } = data
+      void password
+      const res = await api.post('/registrations', request, { headers: { Authorization: `Bearer ${token}` } })
+      setUser(null)
       setFirebaseUser(credential.user)
-    },
-    [],
-  )
+      return res.data.data.id as string
+    } catch (error) {
+      await deleteUser(credential.user).catch(() => undefined)
+      throw error
+    }
+  }, [])
 
   // ── Logout ─────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
@@ -150,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, firebaseUser, loading, login, register, logout }}
+      value={{ user, firebaseUser, loading, login, submitRegistration, logout }}
     >
       {children}
     </AuthContext.Provider>

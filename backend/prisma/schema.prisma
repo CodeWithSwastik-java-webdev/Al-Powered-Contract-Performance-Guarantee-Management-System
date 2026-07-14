@@ -1,4 +1,4 @@
-1// =============================================================================
+// =============================================================================
 // POWERGRID — Contract Performance Guarantee (CPG) Management System
 // Production PostgreSQL Schema via Prisma ORM
 // =============================================================================
@@ -414,6 +414,7 @@ model MlPrediction {
 
 model RegistrationRequest {
   id             String             @id @default(cuid())
+  firebaseUid    String             @unique @map("firebase_uid")
   category       String             // "EMPLOYEE" or "CONTRACTOR"
   status         RegistrationStatus @default(PENDING_APPROVAL)
   email          String             @unique

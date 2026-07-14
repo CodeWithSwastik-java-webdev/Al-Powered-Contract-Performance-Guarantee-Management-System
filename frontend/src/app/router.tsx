@@ -4,8 +4,7 @@ import AppLayout from './layouts/AppLayout'
 import LoginPage from './pages/LoginPage'
 import PremiumLoginPage from './pages/PremiumLoginPage'
 import RegisterLandingPage from './pages/RegisterLandingPage'
-import EmployeeWizard from './pages/EmployeeWizard'
-import ContractorWizard from './pages/ContractorWizard'
+import RegistrationWizard from './pages/RegistrationWizard'
 import TrackingPage from './pages/TrackingPage'
 import DashboardPage from './pages/DashboardPage'
 import ContractsPage from './pages/ContractsPage'
@@ -64,7 +63,7 @@ function AppRoutes() {
         path="/register/employee"
         element={
           <PublicRoute>
-            <AuthLayout><EmployeeWizard /></AuthLayout>
+            <AuthLayout><RegistrationWizard category="EMPLOYEE" /></AuthLayout>
           </PublicRoute>
         }
       />
@@ -72,7 +71,7 @@ function AppRoutes() {
         path="/register/contractor"
         element={
           <PublicRoute>
-            <AuthLayout><ContractorWizard /></AuthLayout>
+            <AuthLayout><RegistrationWizard category="CONTRACTOR" /></AuthLayout>
           </PublicRoute>
         }
       />
