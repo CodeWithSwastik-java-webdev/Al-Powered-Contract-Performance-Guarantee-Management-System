@@ -1,5 +1,4 @@
 export { env, type Env } from "./env";
-export { getFirebaseAuth } from "./firebase";
 export {
   Permission,
   roleHasPermission,

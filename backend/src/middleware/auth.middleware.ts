@@ -1,103 +1,22 @@
 import type { Request, Response, NextFunction } from "express";
-import { getFirebaseAuth } from "../config";
-import { UnauthorizedError, ForbiddenError } from "../utils";
 import { userRepository } from "../repositories";
+import { ForbiddenError, UnauthorizedError, readAccessToken } from "../utils";
 
-async function verifyBearerToken(req: Request): Promise<string> {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    throw new UnauthorizedError("Missing or invalid Authorization header");
-  }
-
-  const idToken = authHeader.slice(7).trim();
-  if (!idToken) {
-    throw new UnauthorizedError("Bearer token is empty");
-  }
-
-  const decoded = await getFirebaseAuth().verifyIdToken(idToken);
-  req.firebaseUid = decoded.uid;
-  return decoded.uid;
-}
-
-/** Verifies Firebase ID token only — used for first-time registration. */
-export async function verifyFirebaseToken(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): Promise<void> {
+export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
   try {
-    await verifyBearerToken(req);
-    next();
-  } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      next(error);
-      return;
-    }
-
-    next(new UnauthorizedError("Invalid or expired authentication token"));
-  }
-}
-
-/** Verifies Firebase token and loads the registered, active user from DB. */
-export async function authenticate(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const firebaseUid = await verifyBearerToken(req);
-    const user = await userRepository.findByFirebaseUid(firebaseUid);
-
-    if (!user) {
-      throw new UnauthorizedError(
-        "User not registered in the system. Contact an administrator.",
-      );
-    }
-
-    // Account state checks
-    if (!user.isActive) {
-      throw new ForbiddenError("Account is deactivated");
-    }
-
-    // Status checks
-    const status = (user as any).status
-    if (status === 'PENDING_APPROVAL' || status === 'MORE_INFORMATION_REQUIRED' || status === 'REJECTED' || status === 'DISABLED') {
-      throw new ForbiddenError(`Account status: ${status}`)
-    }
-
-    // Locked due to failed attempts
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      throw new ForbiddenError('Account is locked due to multiple failed login attempts')
-    }
-
+    const token = req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7).trim() : "";
+    const payload = token ? readAccessToken(token) : null;
+    if (!payload) throw new UnauthorizedError("Please sign in again.");
+    const user = await userRepository.findById(payload.sub);
+    if (!user) throw new UnauthorizedError("Account not found.");
+    if (!user.isActive || user.status !== "ACTIVE") throw new ForbiddenError(`Account status: ${user.status}`);
+    if (user.lockedUntil && user.lockedUntil > new Date()) throw new ForbiddenError("Account is locked due to multiple failed login attempts.");
     req.user = user;
     next();
-  } catch (error) {
-    if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
-      next(error);
-      return;
-    }
-
-    next(new UnauthorizedError("Invalid or expired authentication token"));
-  }
+  } catch (error) { next(error instanceof UnauthorizedError || error instanceof ForbiddenError ? error : new UnauthorizedError("Invalid access token.")); }
 }
 
-export async function optionalAuthenticate(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    next();
-    return;
-  }
-
-  try {
-    await authenticate(req, _res, next);
-  } catch {
-    next();
-  }
+export function optionalAuthenticate(req: Request, res: Response, next: NextFunction): void {
+  if (!req.headers.authorization?.startsWith("Bearer ")) { next(); return; }
+  void authenticate(req, res, next);
 }

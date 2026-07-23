@@ -55,9 +55,15 @@ const uploadedDocumentSchema = z.object({
   size: z.number().int().nonnegative().optional(),
 });
 
+export const loginSchema = z.object({
+  email: z.string().email().transform((value) => value.toLowerCase().trim()),
+  password: z.string().min(8).max(128),
+});
+
 export const createRegistrationSchema = z
   .object({
     category: z.enum(["EMPLOYEE", "CONTRACTOR"]),
+    password: z.string().min(8).max(128),
     name: z.string().min(2).max(150).trim(),
     email: z.string().email().transform((value) => value.toLowerCase().trim()),
     phone: z.string().min(8).max(20).optional(),

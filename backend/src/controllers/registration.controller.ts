@@ -3,9 +3,7 @@ import { registrationService } from '../services'
 
 export class RegistrationController {
   async create(req: Request, res: Response): Promise<void> {
-    if (!req.firebaseUid) throw new Error('Missing Firebase identity')
-    const data = { ...req.body, firebaseUid: req.firebaseUid }
-    const created = await registrationService.create(data)
+    const created = await registrationService.create(req.body)
     res.status(201).json({ success: true, data: created })
   }
 

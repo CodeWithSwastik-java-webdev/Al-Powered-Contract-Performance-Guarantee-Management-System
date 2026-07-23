@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { authService } from "../services";
-import { UnauthorizedError } from "../utils";
+import { createAccessToken } from "../utils";
 import { loginActivityRepository, userRepository } from "../repositories";
 
 const LOCK_THRESHOLD = 5
@@ -8,11 +8,7 @@ const LOCK_DURATION_MINUTES = 15
 
 export class AuthController {
   async register(req: Request, res: Response): Promise<void> {
-    if (!req.firebaseUid) {
-      throw new UnauthorizedError();
-    }
-
-    const user = await authService.registerUser(req.firebaseUid, req.body);
+    const user = await authService.registerUser(req.body);
 
     res.status(201).json({
       success: true,
@@ -21,12 +17,9 @@ export class AuthController {
     });
   }
 
-  async syncLogin(req: Request, res: Response): Promise<void> {
-    if (!req.user) {
-      throw new UnauthorizedError();
-    }
-
-    const user = await authService.syncLogin(req.user.firebaseUid);
+  async login(req: Request, res: Response): Promise<void> {
+    const { email, password } = req.body as { email: string; password: string };
+    const user = await authService.login(email, password);
 
     // record successful login activity and reset failed attempts
     try {
@@ -48,10 +41,11 @@ export class AuthController {
       console.warn('Failed to record login activity', err)
     }
 
-    res.json({ success: true, message: 'Login synced', data: user })
+    const { passwordHash: _passwordHash, ...safeUser } = user
+    res.json({ success: true, data: { user: safeUser, accessToken: createAccessToken(user.id) } })
   }
 
-  /** Public endpoint to record a failed login attempt (called by frontend when Firebase sign-in fails) */
+  /** Public endpoint to record a failed login attempt. */
   async recordLoginFailure(req: Request, res: Response): Promise<void> {
     const { email, failureReason } = req.body as { email: string; failureReason?: string }
     // record activity

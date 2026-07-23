@@ -1,13 +1,12 @@
 import { Router } from 'express'
 import { asyncHandler } from '../utils'
 import { registrationController } from '../controllers'
-import { authenticate, verifyFirebaseToken, requireRoles, validate } from '../middleware'
+import { authenticate, requireRoles, validate } from '../middleware'
 import { createRegistrationSchema, updateRegistrationStatusSchema } from '../validators'
 
 const router = Router()
 
-// Public create (can use verifyFirebaseToken to ensure the caller has a Firebase token)
-router.post('/', verifyFirebaseToken, validate(createRegistrationSchema), asyncHandler(registrationController.create.bind(registrationController)))
+router.post('/', validate(createRegistrationSchema), asyncHandler(registrationController.create.bind(registrationController)))
 
 // Admin / reviewer routes (require auth)
 router.get('/', authenticate, requireRoles('ADMIN'), asyncHandler(registrationController.list.bind(registrationController)))

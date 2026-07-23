@@ -1,13 +1,14 @@
 import { registrationRepository, userRepository } from '../repositories'
 import { RegistrationStatus, UserRole, UserStatus, type RegistrationRequest } from '../generated/prisma/client'
-import { ConflictError, NotFoundError } from '../utils'
+import { ConflictError, NotFoundError, hashPassword } from '../utils'
 import { emailService } from './email.service'
 
 class RegistrationService {
   async create(data: any): Promise<RegistrationRequest> {
     const existing = await registrationRepository.findByEmail(data.email)
     if (existing) throw new ConflictError('An access request already exists for this email.')
-    const req = await registrationRepository.create(data)
+    const { password, ...registration } = data
+    const req = await registrationRepository.create({ ...registration, authIdentifier: `local:${data.email}`, passwordHash: await hashPassword(password) })
     // send confirmation email (mock)
     emailService.send({
       to: req.email,
@@ -39,10 +40,11 @@ class RegistrationService {
     if (comment) await registrationRepository.addComment(id, reviewerId, comment)
 
     if (status === RegistrationStatus.APPROVED) {
-      const existingUser = await userRepository.findByFirebaseUid(request.firebaseUid)
+      const existingUser = await userRepository.findByAuthIdentifier(request.authIdentifier)
       if (!existingUser) {
         await userRepository.create({
-          firebaseUid: request.firebaseUid,
+          authIdentifier: request.authIdentifier,
+          passwordHash: request.passwordHash,
           name: request.name,
           email: request.email,
           phone: request.phone,

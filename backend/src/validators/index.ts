@@ -6,6 +6,7 @@ export {
 } from "./common.validator";
 export {
   registerUserSchema,
+  loginSchema,
   updateUserSchema,
   updateUserRoleSchema,
   listUsersQuerySchema,

@@ -1,8 +1,4 @@
-export {
-  verifyFirebaseToken,
-  authenticate,
-  optionalAuthenticate,
-} from "./auth.middleware";
+export { authenticate, optionalAuthenticate } from "./auth.middleware";
 export {
   requireRoles,
   requirePermission,

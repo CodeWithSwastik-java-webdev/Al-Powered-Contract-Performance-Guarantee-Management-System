@@ -6,8 +6,8 @@ export class UserRepository extends BaseRepository {
     return this.db.user.findUnique({ where: { id } });
   }
 
-  async findByFirebaseUid(firebaseUid: string): Promise<User | null> {
-    return this.db.user.findUnique({ where: { firebaseUid } });
+  async findByAuthIdentifier(authIdentifier: string): Promise<User | null> {
+    return this.db.user.findUnique({ where: { authIdentifier } });
   }
 
   async findByEmail(email: string): Promise<User | null> {

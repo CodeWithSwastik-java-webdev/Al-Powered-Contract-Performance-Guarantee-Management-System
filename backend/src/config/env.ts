@@ -10,11 +10,7 @@ const envSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  FIREBASE_PROJECT_ID: z.string().min(1, "FIREBASE_PROJECT_ID is required"),
-  FIREBASE_CLIENT_EMAIL: z
-    .string()
-    .min(1, "FIREBASE_CLIENT_EMAIL is required"),
-  FIREBASE_PRIVATE_KEY: z.string().min(1, "FIREBASE_PRIVATE_KEY is required"),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
 
   // Cloudinary (optional — required for Phase 6: Document Upload)
   CLOUDINARY_CLOUD_NAME: z.string().optional(),

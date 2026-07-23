@@ -1,41 +1,19 @@
 import type { User } from "../generated/prisma/client";
 import { userRepository } from "../repositories";
-import type { RegisterUserInput } from "../validators";
-import { ConflictError, NotFoundError } from "../utils";
+import { ConflictError, ForbiddenError, NotFoundError, hashPassword, verifyPassword } from "../utils";
 
 export class AuthService {
-  async registerUser(
-    firebaseUid: string,
-    input: RegisterUserInput,
-  ): Promise<User> {
-    const existingByUid = await userRepository.findByFirebaseUid(firebaseUid);
-    if (existingByUid) {
-      throw new ConflictError("User already registered");
-    }
-
-    const existingByEmail = await userRepository.findByEmail(input.email);
-    if (existingByEmail) {
-      throw new ConflictError("Email is already in use");
-    }
-
-    return userRepository.create({
-      firebaseUid,
-      name: input.name,
-      email: input.email,
-      department: input.department,
-      phone: input.phone,
-    });
+  async registerUser(input: { name: string; email: string; password: string; department?: string; phone?: string }): Promise<User> {
+    if (await userRepository.findByEmail(input.email)) throw new ConflictError("Email is already in use");
+    return userRepository.create({ authIdentifier: `local:${input.email}`, passwordHash: await hashPassword(input.password), name: input.name, email: input.email, department: input.department, phone: input.phone });
   }
 
-  async syncLogin(firebaseUid: string): Promise<User> {
-    const user = await userRepository.findByFirebaseUid(firebaseUid);
-
-    if (!user) {
-      throw new NotFoundError("User not found. Complete registration first.");
-    }
-
+  async login(email: string, password: string): Promise<User> {
+    const user = await userRepository.findByEmail(email);
+    if (!user || !user.passwordHash || !(await verifyPassword(password, user.passwordHash))) throw new NotFoundError("Invalid email or password.");
+    if (!user.isActive || user.status !== "ACTIVE") throw new ForbiddenError(`Account status: ${user.status}`);
+    if (user.lockedUntil && user.lockedUntil > new Date()) throw new ForbiddenError("Account is locked due to multiple failed login attempts.");
     return userRepository.updateLastLogin(user.id);
   }
 }
-
 export const authService = new AuthService();

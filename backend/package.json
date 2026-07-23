@@ -11,6 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "seed:accounts": "tsx scripts/seed-local-accounts.ts",
+    "seed:contracts": "tsx scripts/seed-demo-contracts.ts",
     "prisma:studio": "prisma studio",
     "typecheck": "tsc --noEmit"
   },

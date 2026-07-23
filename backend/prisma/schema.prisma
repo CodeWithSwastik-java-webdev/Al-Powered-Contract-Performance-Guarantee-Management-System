@@ -133,7 +133,8 @@ enum NotificationType {
 /// firebase_uid is the canonical identity link to Firebase Auth.
 model User {
   id                  String     @id @default(cuid())
-  firebaseUid         String     @unique @map("firebase_uid")
+  authIdentifier      String     @unique @map("firebase_uid")
+  passwordHash        String?    @map("password_hash")
   name                String
   email               String     @unique
   role                UserRole   @default(VIEWER)
@@ -414,7 +415,8 @@ model MlPrediction {
 
 model RegistrationRequest {
   id             String             @id @default(cuid())
-  firebaseUid    String             @unique @map("firebase_uid")
+  authIdentifier String             @unique @map("firebase_uid")
+  passwordHash   String             @map("password_hash")
   category       String             // "EMPLOYEE" or "CONTRACTOR"
   status         RegistrationStatus @default(PENDING_APPROVAL)
   email          String             @unique
