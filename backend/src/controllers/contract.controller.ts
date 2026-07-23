@@ -26,6 +26,7 @@ export class ContractController {
   async list(req: Request, res: Response): Promise<void> {
     const result = await contractService.list(
       req.query as unknown as ListContractsQuery,
+      req.user,
     );
 
     res.json({
@@ -41,7 +42,7 @@ export class ContractController {
   }
 
   async getById(req: Request, res: Response): Promise<void> {
-    const contract = await contractService.getById(String(req.params.id));
+    const contract = await contractService.getById(String(req.params.id), req.user);
 
     res.json({
       success: true,

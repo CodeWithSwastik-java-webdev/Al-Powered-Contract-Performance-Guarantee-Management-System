@@ -33,7 +33,11 @@ export function AuthProvider({ children }) {
         const response = await api.post('/registrations', data);
         return response.data.data.id;
     };
-    const logout = async () => { setAccessToken(null); localStorage.removeItem(USER_KEY); setUser(null); };
+    const logout = async () => {
+        setAccessToken(null);
+        localStorage.removeItem(USER_KEY);
+        setUser(null);
+    };
     return _jsx(AuthContext.Provider, { value: { user, loading, login, submitRegistration, logout }, children: children });
 }
 export function useAuth() { const context = useContext(AuthContext); if (!context)

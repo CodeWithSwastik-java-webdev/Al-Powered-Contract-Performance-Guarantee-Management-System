@@ -1,28 +1,71 @@
+import type { User } from "../generated/prisma/client";
+import { UserRole } from "../generated/prisma/client";
 import { prisma } from "../prisma/client";
 
+function contractorScope(user: User) {
+  if (user.role === UserRole.CONTRACTOR) {
+    if (!user.contractorId) {
+      return { contractorId: "__none__" };
+    }
+    return { contractorId: user.contractorId };
+  }
+  return {};
+}
+
+function cpgContractorFilter(user: User) {
+  if (user.role === UserRole.CONTRACTOR) {
+    if (!user.contractorId) {
+      return { contract: { contractorId: "__none__" } };
+    }
+    return { contract: { contractorId: user.contractorId } };
+  }
+  return {};
+}
+
 export class DashboardService {
-  async getStats() {
+  async getStats(user: User) {
+    const contractWhere = contractorScope(user);
+    const cpgWhere = cpgContractorFilter(user);
+
     const activeContracts = await prisma.contract.count({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", ...contractWhere },
+    });
+
+    const completedContracts = await prisma.contract.count({
+      where: { status: "COMPLETED", ...contractWhere },
+    });
+
+    const totalContracts = await prisma.contract.count({
+      where: { ...contractWhere },
     });
 
     const activeCpgsCount = await prisma.cpg.count({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", ...cpgWhere },
+    });
+
+    const releasedCpgs = await prisma.cpg.count({
+      where: { status: "RELEASED", ...cpgWhere },
+    });
+
+    const pendingVerificationCpgs = await prisma.cpg.count({
+      where: {
+        status: { in: ["SUBMITTED", "REQUIRED", "VERIFIED"] },
+        ...cpgWhere,
+      },
     });
 
     const cpgAggregation = await prisma.cpg.aggregate({
-      where: { status: "ACTIVE" },
-      _sum: {
-        amount: true,
-      },
+      where: { status: "ACTIVE", ...cpgWhere },
+      _sum: { amount: true },
     });
 
     const totalCpgValue = cpgAggregation._sum.amount || 0;
 
     const riskAggregation = await prisma.riskAssessment.aggregate({
-      _avg: {
-        healthScore: true,
-      },
+      where: Object.keys(cpgWhere).length
+        ? { cpg: cpgWhere }
+        : undefined,
+      _avg: { healthScore: true },
     });
 
     const avgHealthScore = riskAggregation._avg.healthScore || 100;
@@ -33,47 +76,116 @@ export class DashboardService {
     const expiringSoonCount = await prisma.cpg.count({
       where: {
         status: "ACTIVE",
-        expiryDate: {
-          lte: thirtyDaysFromNow,
-        },
+        expiryDate: { lte: thirtyDaysFromNow },
+        ...cpgWhere,
       },
     });
 
     const activeAnomaliesCount = await prisma.riskAssessment.count({
       where: {
         anomalyDetected: true,
-        cpg: {
-          status: "ACTIVE",
-        },
+        cpg: { status: "ACTIVE", ...cpgWhere },
       },
     });
 
-    return {
+    const base = {
       activeContracts,
+      completedContracts,
+      totalContracts,
       activeCpgs: activeCpgsCount,
+      releasedCpgs,
+      pendingVerificationCpgs,
       totalCpgValue,
       avgHealthScore,
       expiringSoon: expiringSoonCount,
       activeAnomalies: activeAnomaliesCount,
     };
+
+    if (user.role === UserRole.ADMIN) {
+      const [
+        pendingRegistrations,
+        totalUsers,
+        totalContractors,
+        notificationsUnread,
+      ] = await Promise.all([
+        prisma.registrationRequest.count({
+          where: { status: "PENDING_APPROVAL" },
+        }),
+        prisma.user.count({ where: { isDeleted: false } }),
+        prisma.contractor.count(),
+        prisma.notification.count({
+          where: { userId: user.id, isRead: false },
+        }),
+      ]);
+
+      return {
+        ...base,
+        pendingRegistrations,
+        totalUsers,
+        totalContractors,
+        notificationsUnread,
+      };
+    }
+
+    if (user.role === UserRole.CONTRACTOR) {
+      const profileComplete = Boolean(
+        user.name && user.email && user.phone && user.contractorId,
+      );
+      return {
+        ...base,
+        profileComplete,
+        contractorId: user.contractorId,
+      };
+    }
+
+    return base;
   }
 
-  async getRecentActivity() {
+  async getRecentActivity(user: User) {
+    if (user.role === UserRole.CONTRACTOR && user.contractorId) {
+      const contractIds = (
+        await prisma.contract.findMany({
+          where: { contractorId: user.contractorId },
+          select: { id: true },
+        })
+      ).map((c) => c.id);
+
+      const cpgIds = (
+        await prisma.cpg.findMany({
+          where: { contractId: { in: contractIds } },
+          select: { id: true },
+        })
+      ).map((c) => c.id);
+
+      return prisma.auditLog.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        where: {
+          OR: [
+            { entityType: "CONTRACT", entityId: { in: contractIds } },
+            { entityType: "CPG", entityId: { in: cpgIds } },
+          ],
+        },
+        include: {
+          user: { select: { name: true, role: true } },
+        },
+      });
+    }
+
     return prisma.auditLog.findMany({
       take: 10,
       orderBy: { createdAt: "desc" },
       include: {
-        user: {
-          select: { name: true, role: true },
-        },
+        user: { select: { name: true, role: true } },
       },
     });
   }
 
-  async getCharts() {
-    // Risk Distribution
+  async getCharts(user: User) {
+    const cpgWhere = cpgContractorFilter(user);
+
     const activeCpgs = await prisma.cpg.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", ...cpgWhere },
       include: {
         riskAssessments: {
           orderBy: { createdAt: "desc" },
@@ -85,10 +197,11 @@ export class DashboardService {
     const riskDistribution = { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
     for (const cpg of activeCpgs) {
       if (cpg.riskAssessments.length > 0) {
-        const level = cpg.riskAssessments[0].riskLevel;
-        riskDistribution[level] = (riskDistribution[level as keyof typeof riskDistribution] || 0) + 1;
+        const level = cpg.riskAssessments[0]!.riskLevel;
+        riskDistribution[level] =
+          (riskDistribution[level as keyof typeof riskDistribution] || 0) + 1;
       } else {
-        riskDistribution.LOW += 1; // Default
+        riskDistribution.LOW += 1;
       }
     }
 
@@ -97,12 +210,10 @@ export class DashboardService {
       value: riskDistribution[name as keyof typeof riskDistribution],
     }));
 
-    // Status Breakdown
     const statusCounts = await prisma.cpg.groupBy({
       by: ["status"],
-      _count: {
-        id: true,
-      },
+      where: { ...cpgWhere },
+      _count: { id: true },
     });
 
     const statusChart = statusCounts.map((item) => ({
@@ -110,19 +221,16 @@ export class DashboardService {
       value: item._count.id,
     }));
 
-    // Monthly Expirations
-    // Grouping by month natively is complex in Prisma depending on DB, so we'll do it in JS for now
     const upcomingCpgs = await prisma.cpg.findMany({
-      where: {
-        status: "ACTIVE",
-      },
-      select: {
-        expiryDate: true,
-      },
+      where: { status: "ACTIVE", ...cpgWhere },
+      select: { expiryDate: true },
     });
 
     const monthlyMap: Record<string, number> = {};
-    const formatter = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" });
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      year: "numeric",
+    });
     for (const cpg of upcomingCpgs) {
       const monthStr = formatter.format(cpg.expiryDate);
       monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + 1;
@@ -133,7 +241,6 @@ export class DashboardService {
       value: monthlyMap[name],
     }));
 
-    // Sort by actual date if needed, but simple for now
     return {
       riskDistribution: riskChart,
       statusBreakdown: statusChart,
@@ -141,16 +248,16 @@ export class DashboardService {
     };
   }
 
-  async getExpiringSoon() {
+  async getExpiringSoon(user: User) {
     const ninetyDaysFromNow = new Date();
     ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
+    const cpgWhere = cpgContractorFilter(user);
 
     return prisma.cpg.findMany({
       where: {
         status: "ACTIVE",
-        expiryDate: {
-          lte: ninetyDaysFromNow,
-        },
+        expiryDate: { lte: ninetyDaysFromNow },
+        ...cpgWhere,
       },
       orderBy: { expiryDate: "asc" },
       take: 10,

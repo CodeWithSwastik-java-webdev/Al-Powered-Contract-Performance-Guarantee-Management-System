@@ -17,28 +17,38 @@ export const Permission = {
   AUDIT_READ: "audit:read",
   RISK_READ: "risk:read",
   ML_READ: "ml:read",
+  REGISTRATION_READ: "registration:read",
+  REGISTRATION_WRITE: "registration:write",
+  REPORT_READ: "report:read",
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
 
+const ALL_PERMISSIONS = Object.values(Permission);
+
+const READ_PORTFOLIO: Permission[] = [
+  Permission.USER_READ,
+  Permission.CONTRACTOR_READ,
+  Permission.CONTRACT_READ,
+  Permission.CPG_READ,
+  Permission.DOCUMENT_READ,
+  Permission.NOTIFICATION_READ,
+  Permission.RISK_READ,
+  Permission.ML_READ,
+  Permission.REPORT_READ,
+];
+
 const rolePermissions: Record<UserRole, readonly Permission[]> = {
-  [UserRole.ADMIN]: Object.values(Permission),
-  [UserRole.ENGINEER]: [
-    Permission.USER_READ,
-    Permission.CONTRACTOR_READ,
+  [UserRole.ADMIN]: ALL_PERMISSIONS,
+  [UserRole.PROJECT_ENGINEER]: [
+    ...READ_PORTFOLIO,
     Permission.CONTRACTOR_WRITE,
-    Permission.CONTRACT_READ,
     Permission.CONTRACT_WRITE,
-    Permission.CPG_READ,
     Permission.CPG_WRITE,
     Permission.CPG_MANAGE_STATUS,
-    Permission.DOCUMENT_READ,
     Permission.DOCUMENT_WRITE,
-    Permission.NOTIFICATION_READ,
-    Permission.RISK_READ,
-    Permission.ML_READ,
   ],
-  [UserRole.FINANCE]: [
+  [UserRole.FINANCE_OFFICER]: [
     Permission.USER_READ,
     Permission.CONTRACTOR_READ,
     Permission.CONTRACT_READ,
@@ -49,16 +59,31 @@ const rolePermissions: Record<UserRole, readonly Permission[]> = {
     Permission.AUDIT_READ,
     Permission.RISK_READ,
     Permission.ML_READ,
+    Permission.REPORT_READ,
   ],
-  [UserRole.VIEWER]: [
-    Permission.USER_READ,
-    Permission.CONTRACTOR_READ,
+  [UserRole.CONTRACT_MANAGER]: [
+    ...READ_PORTFOLIO,
+    Permission.CONTRACTOR_WRITE,
+    Permission.CONTRACT_WRITE,
+    Permission.CPG_WRITE,
+    Permission.CPG_MANAGE_STATUS,
+    Permission.DOCUMENT_WRITE,
+  ],
+  [UserRole.AUDITOR]: [
+    ...READ_PORTFOLIO,
+    Permission.AUDIT_READ,
+  ],
+  [UserRole.CONTRACTOR]: [
     Permission.CONTRACT_READ,
     Permission.CPG_READ,
     Permission.DOCUMENT_READ,
     Permission.NOTIFICATION_READ,
-    Permission.RISK_READ,
-    Permission.ML_READ,
+  ],
+  [UserRole.VIEWER]: [
+    Permission.NOTIFICATION_READ,
+    Permission.REPORT_READ,
+    Permission.CONTRACT_READ,
+    Permission.CPG_READ,
   ],
 };
 
@@ -66,7 +91,7 @@ export function roleHasPermission(
   role: UserRole,
   permission: Permission,
 ): boolean {
-  return rolePermissions[role].includes(permission);
+  return rolePermissions[role]?.includes(permission) ?? false;
 }
 
 export function roleHasAnyPermission(

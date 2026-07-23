@@ -76,14 +76,22 @@ export class ContractService {
     });
   }
 
-  async list(query: ListContractsQuery): Promise<PaginatedResult<unknown>> {
+  async list(
+    query: ListContractsQuery,
+    actor?: User,
+  ): Promise<PaginatedResult<unknown>> {
     const { page, limit, status, zone, contractorId, search } = query;
     const skip = (page - 1) * limit;
+
+    const scopedContractorId =
+      actor?.role === "CONTRACTOR"
+        ? actor.contractorId ?? "__none__"
+        : contractorId;
 
     const where: Prisma.ContractWhereInput = {
       ...(status && { status }),
       ...(zone && { zone }),
-      ...(contractorId && { contractorId }),
+      ...(scopedContractorId && { contractorId: scopedContractorId }),
       ...(search && {
         OR: [
           { contractNumber: { contains: search, mode: "insensitive" } },
@@ -108,9 +116,15 @@ export class ContractService {
     };
   }
 
-  async getById(id: string) {
+  async getById(id: string, actor?: User) {
     const contract = await contractRepository.findById(id);
     if (!contract) {
+      throw new NotFoundError("Contract not found");
+    }
+    if (
+      actor?.role === "CONTRACTOR" &&
+      contract.contractorId !== actor.contractorId
+    ) {
       throw new NotFoundError("Contract not found");
     }
     return contract;

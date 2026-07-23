@@ -1,0 +1,6 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useAuth } from '../../contexts/AuthContext';
+export default function ProfilePage() {
+    const { user } = useAuth();
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("header", { children: [_jsx("h1", { className: "text-3xl font-semibold text-neutral-900", children: "Profile" }), _jsx("p", { className: "mt-2 text-sm text-neutral-600", children: "Manage your account settings" })] }), _jsx("div", { className: "rounded-3xl border border-neutral-200 bg-white p-8", children: _jsxs("div", { className: "space-y-6", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-neutral-700", children: "Name" }), _jsx("p", { className: "mt-1 text-lg text-neutral-900", children: user?.name ?? 'Not set' })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-neutral-700", children: "Email" }), _jsx("p", { className: "mt-1 text-lg text-neutral-900", children: user?.email ?? 'Not set' })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-neutral-700", children: "Role" }), _jsx("p", { className: "mt-1 text-lg text-neutral-900", children: user?.role ?? 'Not set' })] })] }) })] }));
+}

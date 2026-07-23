@@ -12,6 +12,7 @@ export default function ContractsPage() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    // ── Queries ──────────────────────────────────────────────────────────────
     const { data, isLoading } = useQuery({
         queryKey: ['contracts', page, search, statusFilter],
         queryFn: async () => {
@@ -24,14 +25,15 @@ export default function ContractsPage() {
                 },
             });
             return {
-                data: res.data.data ?? [],
+                data: (res.data.data ?? []),
                 meta: res.data.meta,
             };
         },
     });
+    // ── Handlers ─────────────────────────────────────────────────────────────
     const handleSearchChange = (value) => {
         setSearch(value);
-        setPage(1);
+        setPage(1); // Reset to first page on new search
     };
     const handleStatusFilterChange = (e) => {
         setStatusFilter(e.target.value);
@@ -40,6 +42,7 @@ export default function ContractsPage() {
     const handleRowClick = (contract) => {
         navigate(`/contracts/${contract.id}`);
     };
+    // ── Columns ──────────────────────────────────────────────────────────────
     const columns = [
         {
             key: 'contractNumber',
@@ -54,7 +57,7 @@ export default function ContractsPage() {
         {
             key: 'contractor',
             header: 'Contractor',
-            render: (row) => row.contractor?.name ?? '—',
+            render: (row) => row.contractor.name,
         },
         {
             key: 'status',
@@ -67,7 +70,7 @@ export default function ContractsPage() {
             render: (row) => row.completionDate ? new Date(row.completionDate).toLocaleDateString() : '—',
         },
     ];
-    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", children: [_jsxs("div", { children: [_jsx("p", { className: "text-sm uppercase tracking-[0.24em] text-neutral-500", children: "Contracts" }), _jsx("h1", { className: "mt-2 text-3xl font-semibold text-neutral-900", children: "Portfolio contracts" })] }), _jsxs("button", { onClick: () => alert('Create contract modal coming soon'), className: "inline-flex items-center justify-center gap-2 rounded-3xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 shadow-sm", children: [_jsx(Plus, { className: "h-4 w-4" }), "Create contract"] })] }), _jsxs("div", { className: "rounded-[28px] border border-neutral-200 bg-white shadow-surface", children: [_jsxs("div", { className: "flex flex-col gap-4 border-b border-neutral-100 p-6 sm:flex-row sm:items-center sm:justify-between", children: [_jsx("div", { className: "w-full sm:max-w-xs", children: _jsx(SearchInput, { value: search, onChange: handleSearchChange, placeholder: "Search by contract no. or project..." }) }), _jsx("div", { className: "flex items-center gap-3", children: _jsxs("select", { value: statusFilter, onChange: handleStatusFilterChange, className: "h-10 rounded-xl border border-neutral-300 bg-white px-4 text-sm text-neutral-700 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50", children: [_jsx("option", { value: "", children: "All Statuses" }), _jsx("option", { value: "ACTIVE", children: "Active" }), _jsx("option", { value: "DRAFT", children: "Draft" }), _jsx("option", { value: "COMPLETED", children: "Completed" }), _jsx("option", { value: "TERMINATED", children: "Terminated" }), _jsx("option", { value: "SUSPENDED", children: "Suspended" })] }) })] }), _jsx("div", { className: "p-0", children: _jsx(DataTable, { data: data?.data ?? [], columns: columns, isLoading: isLoading, page: data?.meta?.page ?? 1, totalPages: data?.meta?.totalPages ?? 1, onPageChange: setPage, onRowClick: handleRowClick, emptyMessage: search || statusFilter
+    return (_jsxs("div", { className: "space-y-8", children: [_jsxs("div", { className: "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", children: [_jsxs("div", { children: [_jsx("p", { className: "text-sm uppercase tracking-[0.24em] text-neutral-500", children: "Contracts" }), _jsx("h1", { className: "mt-2 text-3xl font-semibold text-neutral-900", children: "Portfolio contracts" })] }), _jsxs("button", { onClick: () => alert('Create contract modal coming soon'), className: "inline-flex items-center justify-center gap-2 rounded-3xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 shadow-sm", children: [_jsx(Plus, { className: "h-4 w-4" }), "Create contract"] })] }), _jsxs("div", { className: "rounded-[28px] border border-neutral-200 bg-white shadow-surface", children: [_jsxs("div", { className: "flex flex-col gap-4 border-b border-neutral-100 p-6 sm:flex-row sm:items-center sm:justify-between", children: [_jsx("div", { className: "w-full sm:max-w-xs", children: _jsx(SearchInput, { value: search, onChange: handleSearchChange, placeholder: "Search by contract no. or project..." }) }), _jsx("div", { className: "flex items-center gap-3", children: _jsxs("select", { value: statusFilter, onChange: handleStatusFilterChange, className: "h-10 rounded-xl border border-neutral-300 bg-white px-4 text-sm text-neutral-700 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50", children: [_jsx("option", { value: "", children: "All Statuses" }), _jsx("option", { value: "ACTIVE", children: "Active" }), _jsx("option", { value: "DRAFT", children: "Draft" }), _jsx("option", { value: "COMPLETED", children: "Completed" }), _jsx("option", { value: "TERMINATED", children: "Terminated" }), _jsx("option", { value: "SUSPENDED", children: "Suspended" })] }) })] }), _jsx("div", { className: "p-0", children: _jsx(DataTable, { data: data?.data ?? [], columns: columns, isLoading: isLoading, page: data?.meta.page ?? 1, totalPages: data?.meta.totalPages ?? 1, onPageChange: setPage, onRowClick: handleRowClick, emptyMessage: search || statusFilter
                                 ? 'No contracts found matching your filters.'
                                 : 'No contracts available.' }) })] })] }));
 }

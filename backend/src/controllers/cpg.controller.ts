@@ -25,6 +25,7 @@ export class CpgController {
   async list(req: Request, res: Response): Promise<void> {
     const result = await cpgService.list(
       req.query as unknown as ListCpgsQuery,
+      req.user,
     );
 
     res.json({
@@ -40,7 +41,7 @@ export class CpgController {
   }
 
   async getById(req: Request, res: Response): Promise<void> {
-    const cpg = await cpgService.getById(String(req.params.id));
+    const cpg = await cpgService.getById(String(req.params.id), req.user);
 
     res.json({
       success: true,

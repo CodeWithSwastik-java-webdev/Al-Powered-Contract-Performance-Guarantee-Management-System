@@ -2,6 +2,7 @@ import {
   AuditEntityType,
   ContractStatus,
   CpgStatus,
+  type User,
 } from "../generated/prisma/client";
 import { prisma } from "../prisma/client";
 import { contractRepository, cpgRepository } from "../repositories";
@@ -88,13 +89,21 @@ export class CpgService {
     return cpgRepository.findById(result.id);
   }
 
-  async list(query: ListCpgsQuery): Promise<PaginatedResult<unknown>> {
+  async list(
+    query: ListCpgsQuery,
+    actor?: User,
+  ): Promise<PaginatedResult<unknown>> {
     const { page, limit, contractId, status, search } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.CpgWhereInput = {
       ...(contractId && { contractId }),
       ...(status && { status }),
+      ...(actor?.role === "CONTRACTOR" && {
+        contract: {
+          contractorId: actor.contractorId ?? "__none__",
+        },
+      }),
       ...(search && {
         OR: [
           { bgNumber: { contains: search, mode: "insensitive" } },
@@ -118,10 +127,16 @@ export class CpgService {
     };
   }
 
-  async getById(id: string) {
+  async getById(id: string, actor?: User) {
     const cpg = await cpgRepository.findById(id);
     if (!cpg) {
       throw new NotFoundError("CPG not found");
+    }
+    if (actor?.role === "CONTRACTOR") {
+      const contract = await contractRepository.findById(cpg.contractId);
+      if (!contract || contract.contractorId !== actor.contractorId) {
+        throw new NotFoundError("CPG not found");
+      }
     }
     return cpg;
   }

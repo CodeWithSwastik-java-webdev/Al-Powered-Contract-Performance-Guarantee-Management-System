@@ -18,8 +18,11 @@ datasource db {
 
 enum UserRole {
   ADMIN
-  ENGINEER
-  FINANCE
+  PROJECT_ENGINEER
+  FINANCE_OFFICER
+  CONTRACT_MANAGER
+  AUDITOR
+  CONTRACTOR
   VIEWER
 }
 
@@ -129,8 +132,7 @@ enum NotificationType {
 // MODELS
 // =============================================================================
 
-/// Platform users authenticated via Firebase.
-/// firebase_uid is the canonical identity link to Firebase Auth.
+/// Platform users authenticated via local JWT (authIdentifier stored in firebase_uid column).
 model User {
   id                  String     @id @default(cuid())
   authIdentifier      String     @unique @map("firebase_uid")
@@ -148,11 +150,13 @@ model User {
   failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
   lockedUntil         DateTime?  @map("locked_until")
   isDeleted           Boolean    @default(false) @map("is_deleted")
+  contractorId        String?    @map("contractor_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
+  contractor        Contractor?           @relation(fields: [contractorId], references: [id], onDelete: SetNull)
   uploadedDocuments Document[]            @relation("DocumentUploader")
   auditLogs         AuditLog[]
   notifications     Notification[]
@@ -167,6 +171,7 @@ model User {
   @@index([isActive])
   @@index([createdAt])
   @@index([isDeleted])
+  @@index([contractorId])
   @@map("users")
 }
 
@@ -191,6 +196,7 @@ model Contractor {
 
   // Relations
   contracts Contract[]
+  portalUsers User[]
 
   @@index([name])
   @@index([email])

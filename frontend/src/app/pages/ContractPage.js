@@ -10,6 +10,7 @@ export default function ContractPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('details');
+    // ── Queries ──────────────────────────────────────────────────────────────
     const { data: contract, isLoading } = useQuery({
         queryKey: ['contracts', id],
         queryFn: async () => {
@@ -17,6 +18,7 @@ export default function ContractPage() {
             return res.data.data;
         },
     });
+    // ── Handlers ─────────────────────────────────────────────────────────────
     const cpgColumns = [
         {
             key: 'bgNumber',
@@ -55,5 +57,7 @@ export default function ContractPage() {
                                         style: 'currency',
                                         currency: contract.currency,
                                         maximumFractionDigits: 0,
-                                    }).format(parseFloat(contract.contractValue)) })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Zone" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: contract.zone || '—' })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Award Date" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: new Date(contract.awardDate).toLocaleDateString() })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Completion Date" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: contract.completionDate ? new Date(contract.completionDate).toLocaleDateString() : '—' })] }), _jsxs("div", { className: "sm:col-span-2 lg:col-span-3", children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Description" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: contract.description || 'No description provided.' })] })] }) })), activeTab === 'cpgs' && (_jsx("div", { className: "rounded-3xl border border-neutral-200 bg-white shadow-surface", children: _jsx(DataTable, { data: contract.cpgs ?? [], columns: cpgColumns, onRowClick: (cpg) => navigate(`/cpgs/${cpg.id}`), emptyMessage: "No CPGs linked to this contract." }) }))] }));
+                                    }).format(parseFloat(contract.contractValue)) })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Zone" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: contract.zone || '—' })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Award Date" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: new Date(contract.awardDate).toLocaleDateString() })] }), _jsxs("div", { children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Completion Date" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: contract.completionDate
+                                        ? new Date(contract.completionDate).toLocaleDateString()
+                                        : '—' })] }), _jsxs("div", { className: "sm:col-span-2 lg:col-span-3", children: [_jsx("p", { className: "text-sm font-medium text-neutral-500", children: "Description" }), _jsx("p", { className: "mt-1 text-base text-neutral-900", children: contract.description || 'No description provided.' })] })] }) })), activeTab === 'cpgs' && (_jsx("div", { className: "rounded-3xl border border-neutral-200 bg-white shadow-surface", children: _jsx(DataTable, { data: contract.cpgs ?? [], columns: cpgColumns, onRowClick: (cpg) => navigate(`/cpgs/${cpg.id}`), emptyMessage: "No CPGs linked to this contract." }) }))] }));
 }
