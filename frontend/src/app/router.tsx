@@ -6,6 +6,7 @@ import PremiumLoginPage from './pages/PremiumLoginPage'
 import RegisterLandingPage from './pages/RegisterLandingPage'
 import RegistrationWizard from './pages/RegistrationWizard'
 import TrackingPage from './pages/TrackingPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import DashboardPage from './pages/DashboardPage'
 import ContractsPage from './pages/ContractsPage'
 import ContractPage from './pages/ContractPage'
@@ -32,12 +33,9 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 }
 
 function PublicRoute({ children }: { children: JSX.Element }) {
-  const { user, loading, firebaseUser } = useAuth()
+  const { user, loading } = useAuth()
   if (loading) return null
-  // If the user is authenticated in Firebase but doesn't have an app profile yet,
-  // redirect them to the onboarding entry page to start registration.
-  if (firebaseUser && !user) return <Navigate to="/register" replace />
-  return user ? <Navigate to="/dashboard" replace /> : children
+  return user ? <Navigate to={user.role === 'ADMIN' ? '/admin/dashboard' : '/dashboard'} replace /> : children
 }
 
 function AppRoutes() {
@@ -86,6 +84,7 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>        
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="admin/dashboard" element={<AdminDashboardPage />} />
         <Route path="contractors" element={<ContractorsPage />} />
         <Route path="contracts" element={<ContractsPage />} />
         <Route path="contracts/:id" element={<ContractPage />} />

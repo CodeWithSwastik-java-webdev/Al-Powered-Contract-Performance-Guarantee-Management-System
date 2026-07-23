@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Pencil, Trash2, ArrowLeft } from 'lucide-react'
 import { StatusBadge } from '../../shared/components/data-display/StatusBadge'
 import { DataTable } from '../../shared/components/data-display/DataTable'
@@ -8,9 +8,8 @@ import api from '../../lib/api'
 
 interface Cpg {
   id: string
-  cpgNumber: string
-  amount: string
-  currency: string
+  bgNumber: string
+  amount: string | number
   status: string
   expiryDate: string
 }
@@ -23,9 +22,9 @@ interface Contract {
   contractValue: string
   currency: string
   awardDate: string
-  completionDate: string
+  completionDate: string | null
   status: string
-  zone: string
+  zone: string | null
   contractor: {
     id: string
     name: string
@@ -36,7 +35,6 @@ interface Contract {
 export default function ContractPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'details' | 'cpgs'>('details')
 
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -51,9 +49,9 @@ export default function ContractPage() {
   // ── Handlers ─────────────────────────────────────────────────────────────
   const cpgColumns = [
     {
-      key: 'cpgNumber',
+      key: 'bgNumber',
       header: 'CPG No.',
-      render: (row: Cpg) => <span className="font-medium text-neutral-900">{row.cpgNumber}</span>,
+      render: (row: Cpg) => <span className="font-medium text-neutral-900">{row.bgNumber}</span>,
     },
     {
       key: 'amount',
@@ -61,9 +59,9 @@ export default function ContractPage() {
       render: (row: Cpg) =>
         new Intl.NumberFormat('en-IN', {
           style: 'currency',
-          currency: row.currency,
+          currency: contract?.currency ?? 'INR',
           maximumFractionDigits: 0,
-        }).format(parseFloat(row.amount)),
+        }).format(typeof row.amount === 'number' ? row.amount : parseFloat(row.amount)),
     },
     {
       key: 'status',
@@ -148,7 +146,7 @@ export default function ContractPage() {
                 : 'border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700'
             }`}
           >
-            {tab === 'details' ? 'Contract Details' : `Linked CPGs (${contract.cpgs.length})`}
+            {tab === 'details' ? 'Contract Details' : `Linked CPGs (${contract.cpgs?.length ?? 0})`}
           </button>
         ))}
       </div>
@@ -173,7 +171,7 @@ export default function ContractPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-neutral-500">Zone</p>
-              <p className="mt-1 text-base text-neutral-900">{contract.zone}</p>
+              <p className="mt-1 text-base text-neutral-900">{contract.zone || '—'}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-neutral-500">Award Date</p>
@@ -181,7 +179,11 @@ export default function ContractPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-neutral-500">Completion Date</p>
-              <p className="mt-1 text-base text-neutral-900">{new Date(contract.completionDate).toLocaleDateString()}</p>
+              <p className="mt-1 text-base text-neutral-900">
+                {contract.completionDate
+                  ? new Date(contract.completionDate).toLocaleDateString()
+                  : '—'}
+              </p>
             </div>
             <div className="sm:col-span-2 lg:col-span-3">
               <p className="text-sm font-medium text-neutral-500">Description</p>
@@ -194,7 +196,7 @@ export default function ContractPage() {
       {activeTab === 'cpgs' && (
         <div className="rounded-3xl border border-neutral-200 bg-white shadow-surface">
           <DataTable
-            data={contract.cpgs}
+            data={contract.cpgs ?? []}
             columns={cpgColumns}
             onRowClick={(cpg) => navigate(`/cpgs/${cpg.id}`)}
             emptyMessage="No CPGs linked to this contract."

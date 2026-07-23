@@ -13,8 +13,8 @@ interface Contract {
   contractNumber: string
   projectName: string
   status: string
-  startDate: string
-  endDate: string
+  awardDate: string
+  completionDate: string | null
   contractor: {
     id: string
     name: string
@@ -49,7 +49,10 @@ export default function ContractsPage() {
           status: statusFilter || undefined,
         },
       })
-      return res.data.data as ContractsResponse
+      return {
+        data: (res.data.data ?? []) as Contract[],
+        meta: res.data.meta as ContractsResponse['meta'],
+      }
     },
   })
 
@@ -93,9 +96,10 @@ export default function ContractsPage() {
       render: (row: Contract) => <StatusBadge status={row.status} />,
     },
     {
-      key: 'endDate',
+      key: 'completionDate',
       header: 'End Date',
-      render: (row: Contract) => new Date(row.endDate).toLocaleDateString(),
+      render: (row: Contract) =>
+        row.completionDate ? new Date(row.completionDate).toLocaleDateString() : '—',
     },
   ]
 

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { DataTable } from '../../shared/components/data-display/DataTable'
@@ -9,8 +8,8 @@ import api from '../../lib/api'
 interface Contractor {
   id: string
   name: string
-  contactEmail: string | null
-  contactPhone: string | null
+  email: string | null
+  phone: string | null
   address: string | null
   isActive: boolean
   isBlacklisted: boolean
@@ -40,7 +39,10 @@ export default function ContractorsPage() {
           search: search || undefined,
         },
       })
-      return res.data.data as ContractorsResponse
+      return {
+        data: (res.data.data ?? []) as Contractor[],
+        meta: res.data.meta as ContractorsResponse['meta'],
+      }
     },
   })
 
@@ -51,14 +53,14 @@ export default function ContractorsPage() {
       render: (row: Contractor) => <span className="font-medium text-neutral-900">{row.name}</span>,
     },
     {
-      key: 'contactEmail',
+      key: 'email',
       header: 'Email',
-      render: (row: Contractor) => row.contactEmail || '-',
+      render: (row: Contractor) => row.email || '-',
     },
     {
-      key: 'contactPhone',
+      key: 'phone',
       header: 'Phone',
-      render: (row: Contractor) => row.contactPhone || '-',
+      render: (row: Contractor) => row.phone || '-',
     },
     {
       key: 'status',
