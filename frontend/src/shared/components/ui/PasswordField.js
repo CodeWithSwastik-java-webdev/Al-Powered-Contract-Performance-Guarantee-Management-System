@@ -1,7 +1,10 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-export default function PasswordField({ label, ...props }) {
+
+const PasswordField = forwardRef(function PasswordField({ label, ...props }, ref) {
     const [show, setShow] = useState(false);
-    return (_jsxs("div", { children: [_jsx("label", { className: "mb-2 block text-sm font-medium text-neutral-700", children: label }), _jsxs("div", { className: "relative", children: [_jsx("input", { type: show ? 'text' : 'password', ...props, className: "w-full rounded-3xl border border-neutral-300 bg-white px-4 py-3 pr-12 text-sm text-neutral-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100" }), _jsx("button", { type: "button", onClick: () => setShow(s => !s), "aria-label": "Toggle password visibility", className: "absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500", children: show ? _jsx(EyeOff, { size: 18 }) : _jsx(Eye, { size: 18 }) })] })] }));
-}
+    return (_jsxs("div", { children: [_jsx("label", { className: "mb-2 block text-sm font-medium text-neutral-700", children: label }), _jsxs("div", { className: "relative", children: [_jsx("input", { ref, type: show ? 'text' : 'password', ...props, className: "w-full rounded-3xl border border-neutral-300 bg-white px-4 py-3 pr-12 text-sm text-neutral-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100" }), _jsx("button", { type: "button", onClick: () => setShow(s => !s), "aria-label": "Toggle password visibility", className: "absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500", children: show ? _jsx(EyeOff, { size: 18 }) : _jsx(Eye, { size: 18 }) })] })] }));
+});
+
+export default PasswordField;
